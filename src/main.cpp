@@ -1,20 +1,10 @@
+#include "ccunit.h"
 #include <iostream>
-#include <string_view>
 
-class Test
+TEST
 {
-    private:
-        std::string name;
-        bool result;
-    public:
-        Test(std::string_view name) : name(name), result(true) {}
-        void operator () ()
-        {
-            std::cout << name << '\n';
-        }
-};
-
-Test test("testCanBeCreated");
+    std::cout << name << '\n';
+}
 
 int main()
 {
