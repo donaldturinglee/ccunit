@@ -12,12 +12,12 @@ namespace CCUnit
             virtual ~TestInterface () = default;
             virtual void run () = 0;
     };
-    std::vector<TestInterface *> &getTests()
+    inline std::vector<TestInterface *> &getTests()
     {
         static std::vector<TestInterface *> tests;
         return tests;
     }
-    void runTests()
+    inline void runTests()
     {
         for (auto *test : getTests())
         {
