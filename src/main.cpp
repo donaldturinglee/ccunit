@@ -3,6 +3,5 @@
 
 int main()
 {
-    CCUnit::runTests();
-    return 0;
+    return CCUnit::runTests();
 }

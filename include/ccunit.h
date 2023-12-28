@@ -41,8 +41,11 @@ namespace CCUnit
         static std::vector<TestBase *> tests;
         return tests;
     }
-    inline void runTests()
+    inline int runTests()
     {
+        std::cout << "Running " << getTests().size() << " tests\n";
+        int num_passed {0};
+        int num_failed {0};
         for (auto *test : getTests())
         {
             std::cout << "---------------\n";
@@ -57,14 +60,27 @@ namespace CCUnit
             }
             if (test->getPassed())
             {
+                ++num_passed;
                 std::cout << "Passed\n";
             }
             else
             {
+                ++num_failed;
                 std::cout << "Failed\n";
                 std::cout << test->getReason() << '\n';
             }
         }
+        std::cout << "---------------\n";
+        if (num_failed == 0)
+        {
+            std::cout << "All tests passed.\n";
+        }
+        else
+        {
+            std::cout << "Tests passed: " << num_passed << '\n';
+            std::cout << "Tests failed: " << num_failed << '\n';
+        }
+        return num_failed;
     }
 } // namespace CCUnit
 
