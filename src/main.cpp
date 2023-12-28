@@ -8,6 +8,6 @@ TEST
 
 int main()
 {
-    test();
+    CCUnit::runTests();
     return 0;
 }
