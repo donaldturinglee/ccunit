@@ -5,12 +5,12 @@
 //     std::cout << getName() << '\n';
 // }
 
-// TEST
-// {
-//     throw 1;
-// }
-
-TEST
+TEST("Test can be created")
 {
-    
+
+}
+
+TEST("Test with throw can be created")
+{
+    throw 1;
 }
