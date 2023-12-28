@@ -1,38 +1,66 @@
 #ifndef CCUNIT_H
 #define CCUNIT_H
 
+#include <iostream>
 #include <string_view>
 #include <vector>
 
 namespace CCUnit
 {
-    class TestInterface
+    class TestBase
     {
+        private:
+            std::string name;
+            bool passed;
+            std::string reason;
         public:
-            virtual ~TestInterface () = default;
+            TestBase (std::string_view name) : name(name), passed(true) { }
+            virtual ~TestBase() = default;
             virtual void run () = 0;
+            std::string_view getName () const
+            {
+                return name;
+            }
+            bool getPassed () const
+            {
+                return passed;
+            }
+            std::string_view getReason () const
+            {
+                return reason;
+            }
+            void setFailed(std::string_view reason)
+            {
+                this->passed = false;
+                this->reason = reason;
+            }
     };
-    inline std::vector<TestInterface *> &getTests()
+    
+    inline std::vector<TestBase *> &getTests()
     {
-        static std::vector<TestInterface *> tests;
+        static std::vector<TestBase *> tests;
         return tests;
     }
     inline void runTests()
     {
         for (auto *test : getTests())
         {
-            test->run();
+            try
+            {
+                test->run();
+            }
+            catch(...)
+            {
+                test->setFailed("Unexpected exception thrown.");
+            }
         }
     }
 } // namespace CCUnit
 
-#define TEST class Test : public CCUnit::TestInterface \
+#define TEST class Test : public CCUnit::TestBase \
 { \
-    private: \
-        std::string name; \
-        bool result; \
     public: \
-        Test(std::string_view name) : name(name), result(true) \
+        Test(std::string_view name) : TestBase(name) \
         { \
             CCUnit::getTests().push_back(this); \
         } \

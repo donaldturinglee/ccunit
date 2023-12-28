@@ -3,5 +3,5 @@
 
 TEST
 {
-    std::cout << name << '\n';
+    std::cout << getName() << '\n';
 }
