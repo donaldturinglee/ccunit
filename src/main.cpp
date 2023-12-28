@@ -3,5 +3,5 @@
 
 int main()
 {
-    return CCUnit::runTests();
+    return CCUnit::runTests(std::cout);
 }

@@ -1,7 +1,7 @@
 #ifndef CCUNIT_H
 #define CCUNIT_H
 
-#include <iostream>
+#include <ostream>
 #include <string_view>
 #include <vector>
 
@@ -41,15 +41,15 @@ namespace CCUnit
         static std::vector<TestBase *> tests;
         return tests;
     }
-    inline int runTests()
+    inline int runTests(std::ostream &output)
     {
-        std::cout << "Running " << getTests().size() << " tests\n";
+        output << "Running " << getTests().size() << " tests\n";
         int num_passed {0};
         int num_failed {0};
         for (auto *test : getTests())
         {
-            std::cout << "---------------\n";
-            std::cout << test->getName() << '\n';
+            output << "---------------\n";
+            output << test->getName() << '\n';
             try
             {    
                 test->run();
@@ -61,24 +61,24 @@ namespace CCUnit
             if (test->getPassed())
             {
                 ++num_passed;
-                std::cout << "Passed\n";
+                output << "Passed\n";
             }
             else
             {
                 ++num_failed;
-                std::cout << "Failed\n";
-                std::cout << test->getReason() << '\n';
+                output << "Failed\n";
+                output << test->getReason() << '\n';
             }
         }
-        std::cout << "---------------\n";
+        output << "---------------\n";
         if (num_failed == 0)
         {
-            std::cout << "All tests passed.\n";
+            output << "All tests passed.\n";
         }
         else
         {
-            std::cout << "Tests passed: " << num_passed << '\n';
-            std::cout << "Tests failed: " << num_failed << '\n';
+            output << "Tests passed: " << num_passed << '\n';
+            output << "Tests failed: " << num_failed << '\n';
         }
         return num_failed;
     }
