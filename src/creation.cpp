@@ -1,7 +1,16 @@
 #include "ccunit.h"
-#include <iostream>
+
+// TEST
+// {
+//     std::cout << getName() << '\n';
+// }
+
+// TEST
+// {
+//     throw 1;
+// }
 
 TEST
 {
-    std::cout << getName() << '\n';
+    
 }

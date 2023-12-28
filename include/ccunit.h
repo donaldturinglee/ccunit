@@ -45,13 +45,24 @@ namespace CCUnit
     {
         for (auto *test : getTests())
         {
+            std::cout << "---------------\n";
+            std::cout << test->getName() << '\n';
             try
-            {
+            {    
                 test->run();
             }
             catch(...)
             {
                 test->setFailed("Unexpected exception thrown.");
+            }
+            if (test->getPassed())
+            {
+                std::cout << "Passed\n";
+            }
+            else
+            {
+                std::cout << "Failed\n";
+                std::cout << test->getReason() << '\n';
             }
         }
     }
