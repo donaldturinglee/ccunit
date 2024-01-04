@@ -7,58 +7,62 @@
 
 namespace CCUnit
 {
-    class TestBase
+    class Test_Base
     {
         private:
             std::string name;
             bool passed;
             std::string reason;
         public:
-            TestBase (std::string_view name) : name(name), passed(true) { }
-            virtual ~TestBase() = default;
+        Test_Base (std::string_view name) : name{name}, passed{true} { }
+            virtual ~Test_Base() = default;
+            virtual void run_exception ()
+            {
+                run();
+            }
             virtual void run () = 0;
-            std::string_view getName () const
+            std::string_view get_name () const
             {
                 return name;
             }
-            bool getPassed () const
+            bool get_passed () const
             {
                 return passed;
             }
-            std::string_view getReason () const
+            std::string_view get_reason () const
             {
                 return reason;
             }
-            void setFailed(std::string_view reason)
+            void set_failed(std::string_view reason)
             {
                 this->passed = false;
                 this->reason = reason;
             }
     };
     
-    inline std::vector<TestBase *> &getTests()
+    inline std::vector<Test_Base *> &get_tests()
     {
-        static std::vector<TestBase *> tests;
+        static std::vector<Test_Base *> tests;
         return tests;
     }
-    inline int runTests(std::ostream &output)
+    inline int run_tests(std::ostream &output)
     {
-        output << "Running " << getTests().size() << " tests\n";
+        output << "Running " << get_tests().size() << " tests\n";
         int num_passed {0};
         int num_failed {0};
-        for (auto *test : getTests())
+        for (auto *test : get_tests())
         {
             output << "---------------\n";
-            output << test->getName() << '\n';
+            output << test->get_name() << '\n';
             try
             {    
-                test->run();
+                test->run_exception();
             }
             catch(...)
             {
-                test->setFailed("Unexpected exception thrown.");
+                test->set_failed("Unexpected exception thrown.");
             }
-            if (test->getPassed())
+            if (test->get_passed())
             {
                 ++num_passed;
                 output << "Passed\n";
@@ -67,7 +71,7 @@ namespace CCUnit
             {
                 ++num_failed;
                 output << "Failed\n";
-                output << test->getReason() << '\n';
+                output << test->get_reason() << '\n';
             }
         }
         output << "---------------\n";
@@ -91,17 +95,39 @@ namespace CCUnit
 #define CCUNIT_INSTANCE_RELAY( line ) CCUNIT_INSTANCE_FINAL( line )
 #define CCUNIT_INSTANCE CCUNIT_INSTANCE_RELAY( __LINE__ )
 
-#define TEST( test_name ) \
-class CCUNIT_CLASS : public CCUnit::TestBase \
+#define CCU( test_name ) \
+class CCUNIT_CLASS : public CCUnit::Test_Base \
 { \
     public: \
-        CCUNIT_CLASS (std::string_view name) : TestBase(name) \
+        CCUNIT_CLASS (std::string_view name) : Test_Base{name} \
         { \
-            CCUnit::getTests().push_back(this); \
+            CCUnit::get_tests().push_back(this); \
         } \
         void run () override; \
 }; \
 CCUNIT_CLASS CCUNIT_INSTANCE(test_name); \
 void CCUNIT_CLASS::run()
 
+#define CCU_EX( test_name, exception_type ) \
+class CCUNIT_CLASS : public CCUnit::Test_Base \
+{ \
+    public: \
+        CCUNIT_CLASS (std::string_view name) : Test_Base{name} \
+        { \
+            CCUnit::get_tests().push_back(this); \
+        } \
+        void run_exception () override \
+        { \
+            try \
+            { \
+                run(); \
+            } \
+            catch (exception_type const &) \
+            { \
+            } \
+        } \
+        void run () override; \
+}; \
+CCUNIT_CLASS CCUNIT_INSTANCE(test_name); \
+void CCUNIT_CLASS::run()
 #endif // CCUNIT_H
