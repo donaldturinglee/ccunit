@@ -1,11 +1,12 @@
+#include "ccunit.h"
 #include <iostream>
 
-void test_created() {
-	std::cout << "test can be created\n";
+TEST {
+	std::cout << name_ << '\n';
 }
 
 int main(int argc, char* argv[]) {
-	test_created();
+	test();
 
 	return 0;	
 }
