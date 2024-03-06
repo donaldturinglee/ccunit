@@ -3,5 +3,5 @@
 #include <iostream>
 
 TEST {
-	std::cout << name_ << '\n';
+	throw 1;
 }
