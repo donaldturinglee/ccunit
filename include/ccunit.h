@@ -57,15 +57,23 @@ namespace ccunit {
 	}
 } // namespace ccunit
 
-#define TEST class Test : public ccunit::TestBase { \
+#define CCUNIT_CLASS_FINAL(line) Test ## line
+#define CCUNIT_CLASS_RELAY(line) CCUNIT_CLASS_FINAL(line)
+#define CCUNIT_CLASS CCUNIT_CLASS_RELAY(__LINE__)
+
+#define CCUNIT_INSTANCE_FINAL(line) test ## line
+#define CCUNIT_INSTANCE_RELAY(line) CCUNIT_INSTANCE_FINAL(line)
+#define CCUNIT_INSTANCE CCUNIT_INSTANCE_RELAY(__LINE__)
+
+#define TEST(test_name) class CCUNIT_CLASS : public ccunit::TestBase { \
 public: \
-	Test(std::string_view name) : TestBase(name) { \
+	CCUNIT_CLASS(std::string_view name) : TestBase(name) { \
 		ccunit::get_tests().push_back(this); \
 	} \
 	void run() override; \
 }; \
-Test test("test_created");\
-void Test::run()
+CCUNIT_CLASS CCUNIT_INSTANCE(test_name);\
+void CCUNIT_CLASS::run()
 
 
 

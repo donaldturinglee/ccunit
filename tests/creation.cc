@@ -2,6 +2,9 @@
 
 #include <iostream>
 
-TEST {
+TEST("Test created") {
+}
+
+TEST("Test with throw created") {
 	throw 1;
 }
