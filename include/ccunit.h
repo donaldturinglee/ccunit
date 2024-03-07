@@ -27,10 +27,27 @@ namespace ccunit {
 			passed_ = false;
 			reason_ = reason;
 		}
+		std::string_view get_expected_reason() const {
+			return expected_reason_;
+		}
+		void set_expected_failure_reason(std::string_view reason) {
+			expected_reason_ = reason;
+		}
 	private:
 		std::string name_;
 		bool passed_;
 		std::string reason_;
+		std::string expected_reason_;
+	};
+
+	class MissingException {
+	public:
+		MissingException(std::string_view ex_type) : ex_type_(ex_type) {}
+		std::string_view get_ex_type() const {
+			return ex_type_;
+		}
+	private:
+		std::string ex_type_;
 	};
 
 	inline std::vector<TestBase*>& get_tests() {
@@ -41,21 +58,40 @@ namespace ccunit {
 		os << "Running "
 				<< get_tests().size()
 				<< " tests\n";
+
 		int num_passed{0};
 		int num_failed{0};
+		int num_missed_failed{0};
+
 		for(auto* test : get_tests()) {
 			os << "---------------\n"
 					<< test->get_name()
 					<< '\n';
 			try {
 				test->run_ex();
+			} catch(MissingException const& ex) {
+				std::string message = "Expected exception type ";
+				message += ex.get_ex_type();
+				message += " was not thrown.";
+				test->set_failed(message);
 			} catch(...) {
 				test->set_failed("Unexpected exception thrown.");
 			}
 
 			if(test->get_passed()) {
+				if(!test->get_expected_reason().empty()) {
+					++num_missed_failed;
+					os << "Missed expected failure\n"
+						<< "Test passed but was expected to fail.\n";
+				} else {
+					++num_passed;
+					os << "Passed\n";
+				}
+			} else if(!test->get_expected_reason().empty() && test->get_expected_reason() == test->get_reason()) {
 				++num_passed;
-				os  << "Passed\n";
+				os << "Expected failure\n"
+					<< test->get_reason()
+					<< '\n';
 			} else {
 				++num_failed;
 				os << "Failed\n"
@@ -64,12 +100,14 @@ namespace ccunit {
 			}
 		}
 		os << "---------------\n";
-		if(num_failed == 0) {
-			os << "All tests passed.\n";
-		} else {
-			os << "Tests passed: " << num_passed << '\n';
-			os << "Tests failed: " << num_failed << '\n';
+		os << "Tests passed: " << num_passed << '\n';
+		os << "Tests failed: " << num_failed << '\n';
+		if(num_missed_failed != 0) {
+			os << "Tests failures missed: "
+				<< num_missed_failed;
 		}
+		os << '\n';
+
 		return num_failed;
 	}
 } // namespace ccunit
@@ -101,8 +139,9 @@ public: \
 		try { \
 			run(); \
 		} catch(exception_type const& e) { \
-		\
+			return; \
 		} \
+		throw ccunit::MissingException(#exception_type); \
 	} \
 	void run() override; \
 }; \
