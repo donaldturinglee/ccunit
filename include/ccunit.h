@@ -8,7 +8,7 @@
 namespace ccunit {
 	class TestBase {
 	public:
-		TestBase(std::string_view name) : name_(name), passed_(true) {}
+		TestBase(std::string_view name) : name_(name), passed_(true), confirm_location_(-1) {}
 		virtual ~TestBase() = default;
 		virtual void run_ex() {
 			run();
@@ -23,9 +23,10 @@ namespace ccunit {
 		std::string_view get_reason() const {
 			return reason_;
 		}
-		void set_failed(std::string_view reason) {
+		void set_failed(std::string_view reason, int confirm_location = -1) {
 			passed_ = false;
 			reason_ = reason;
+			confirm_location_ = confirm_location;
 		}
 		std::string_view get_expected_reason() const {
 			return expected_reason_;
@@ -33,32 +34,54 @@ namespace ccunit {
 		void set_expected_failure_reason(std::string_view reason) {
 			expected_reason_ = reason;
 		}
+		int get_confirm_location() const {
+			return confirm_location_;
+		}
 	private:
 		std::string name_;
 		bool passed_;
 		std::string reason_;
 		std::string expected_reason_;
+		int confirm_location_;
 	};
 
 	class ConfirmException {
 	public:
-		ConfirmException() = default;
+		ConfirmException(int line) : line_(line) {}
 		virtual ~ConfirmException() = default;
 		std::string_view get_reason() const {
 			return reason_;
 		}
+		int get_line() const {
+			return line_;
+		}
 	protected:
 		std::string reason_;
+		int line_;
 	};
 
 	class BoolConfirmException : public ConfirmException {
 	public:
-		BoolConfirmException(bool expected, int line) {
-			reason_ = "Confirm failed on line ";
-			reason_ += std::to_string(line) + '\n';
+		BoolConfirmException(bool expected, int line) : ConfirmException(line) {
 			reason_ += "    Expected: ";
 			reason_ += expected ? "true" : "false";
 		}
+	};
+
+	class ActualConfirmException : public ConfirmException {
+	public:
+		ActualConfirmException(std::string_view expected, std::string_view actual, int line) 
+			: ConfirmException(line), expected_(expected), actual_(actual) {
+				format_reason();
+			}
+	private:
+		void format_reason() {
+			reason_ += "    Expected: " + expected_ + '\n';
+			reason_ += "    Actual  : " + actual_;
+		}
+		std::string expected_;
+		std::string actual_;
+		int line_;
 	};
 
 	class MissingException {
@@ -70,6 +93,47 @@ namespace ccunit {
 	private:
 		std::string ex_type_;
 	};
+
+	template<typename T>
+	void confirm(T const& expected, T const& actual, int line) {
+		if(actual != expected) {
+			throw ActualConfirmException(std::to_string(expected), std::to_string(actual), line);
+		}
+	}
+
+	inline void confirm(bool expected, bool actual, int line) {
+		if(actual != expected) {
+			throw BoolConfirmException(expected, line);
+		}
+	}
+
+	inline void confirm(std::string_view expected, std::string_view actual, int line) {
+		if(actual != expected) {
+			throw ActualConfirmException(expected, actual, line);
+		}
+	}
+
+	inline void confirm(std::string& expected, std::string const& actual, int line) {
+		confirm(std::string_view(expected), std::string_view(actual), line);
+	}
+
+	inline void confirm(float expected, float actual, int line) {
+		if(actual < (expected - 0.0001f) || actual > (expected + 0.0001f)) {
+			throw ActualConfirmException(std::to_string(expected), std::to_string(line), line);
+		}
+	}
+
+	inline void confirm(double expected, double actual, int line) {
+		if(actual < (expected - 0.000001) || actual > (expected + 0.000001)) {
+			throw ActualConfirmException(std::to_string(expected), std::to_string(line), line);
+		}
+	}
+
+	inline void confirm(long double expected, long double actual, int line) {
+		if(actual < (expected - 0.000001) || actual > (expected + 0.000001)) {
+			throw ActualConfirmException(std::to_string(expected), std::to_string(line), line);
+		}
+	}
 
 	inline std::vector<TestBase*>& get_tests() {
 		static std::vector<TestBase*> tests;
@@ -91,7 +155,7 @@ namespace ccunit {
 			try {
 				test->run_ex();
 			} catch(ConfirmException const& ex) {
-				test->set_failed(ex.get_reason());
+				test->set_failed(ex.get_reason(), ex.get_line());
 			} catch(MissingException const& ex) {
 				std::string message = "Expected exception type ";
 				message += ex.get_ex_type();
@@ -117,9 +181,12 @@ namespace ccunit {
 					<< '\n';
 			} else {
 				++num_failed;
-				os << "Failed\n"
-						<< test->get_reason()
-						<< '\n';
+				if(test->get_confirm_location() != -1) {
+					os << "Failed confirm on line " << test->get_confirm_location() << '\n';
+				} else {
+					os << "Failed\n";
+				}
+				os << test->get_reason() << '\n';
 			}
 		}
 		os << "---------------\n";
@@ -175,14 +242,8 @@ void CCUNIT_CLASS::run()
 CCUNIT_CLASS CCUNIT_INSTANCE(test_name);\
 void CCUNIT_CLASS::run()
 
-#define CONFIRM_FALSE(actual) \
-if(actual) { \
-	throw ccunit::BoolConfirmException(false, __LINE__); \
-}
-
-#define CONFIRM_TRUE(actual) \
-if(!actual) { \
-	throw ccunit::BoolConfirmException(true, __LINE__); \
-}
+#define CONFIRM_FALSE(actual) ccunit::confirm(false, actual, __LINE__)
+#define CONFIRM_TRUE(actual) ccunit::confirm(true, actual, __LINE__)
+#define CONFIRM(expected, actual) ccunit::confirm(expected, actual, __LINE__)
 
 #endif // CCUNIT_H
