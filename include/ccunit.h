@@ -3,12 +3,20 @@
 
 #include <ostream>
 #include <string_view>
+#include <source_location>
 #include <vector>
 
 namespace ccunit {
+	class TestBase;
+	inline std::vector<TestBase*>& get_tests() {
+		static std::vector<TestBase*> tests;
+		return tests;
+	}
 	class TestBase {
 	public:
-		TestBase(std::string_view name) : name_(name), passed_(true), confirm_location_(-1) {}
+		TestBase(std::string_view name) : name_(name), passed_(true), confirm_location_(-1) {
+			get_tests().push_back(this);
+		}
 		virtual ~TestBase() = default;
 		virtual void run_ex() {
 			run();
@@ -44,6 +52,7 @@ namespace ccunit {
 		std::string expected_reason_;
 		int confirm_location_;
 	};
+
 
 	class ConfirmException {
 	public:
@@ -94,6 +103,22 @@ namespace ccunit {
 		std::string ex_type_;
 	};
 
+	template<typename ExceptionType>
+	class TestExBase : public TestBase {
+	public:
+		TestExBase(std::string_view name, std::string_view exception_name) : TestBase(name), exception_name_(exception_name) {}
+		void run_ex() override {
+			try {
+				run();
+			} catch(ExceptionType const& ex) {
+				return;
+			}
+			throw MissingException(exception_name_);
+		}
+	private:
+		std::string exception_name_;
+	};
+
 	template<typename T>
 	void confirm(T const& expected, T const& actual, int line) {
 		if(actual != expected) {
@@ -101,9 +126,9 @@ namespace ccunit {
 		}
 	}
 
-	inline void confirm(bool expected, bool actual, int line) {
+	inline void confirm(bool expected, bool actual, const std::source_location location = std::source_location::current()) {
 		if(actual != expected) {
-			throw BoolConfirmException(expected, line);
+			throw BoolConfirmException(expected, location.line());
 		}
 	}
 
@@ -135,10 +160,6 @@ namespace ccunit {
 		}
 	}
 
-	inline std::vector<TestBase*>& get_tests() {
-		static std::vector<TestBase*> tests;
-		return tests;
-	}
 	inline int run_tests(std::ostream& os) {
 		os << "Running "
 				<< get_tests().size()
@@ -213,9 +234,7 @@ namespace ccunit {
 #define TEST(test_name) namespace { \
 	class CCUNIT_CLASS : public ccunit::TestBase { \
 	public: \
-		CCUNIT_CLASS(std::string_view name) : TestBase(name) { \
-			ccunit::get_tests().push_back(this); \
-		} \
+		CCUNIT_CLASS(std::string_view name) : TestBase(name) {} \
 		void run() override; \
 	}; \
 } /* unnamed namespace */ \
@@ -223,23 +242,13 @@ CCUNIT_CLASS CCUNIT_INSTANCE(test_name);\
 void CCUNIT_CLASS::run()
 
 #define TEST_EX(test_name, exception_type) namespace { \
-	class CCUNIT_CLASS : public ccunit::TestBase { \
+	class CCUNIT_CLASS : public ccunit::TestExBase<exception_type> { \
 	public: \
-		CCUNIT_CLASS(std::string_view name) : TestBase(name) { \
-			ccunit::get_tests().push_back(this); \
-		} \
-		void run_ex() override { \
-			try { \
-				run(); \
-			} catch(exception_type const& e) { \
-				return; \
-			} \
-			throw ccunit::MissingException(#exception_type); \
-		} \
+		CCUNIT_CLASS(std::string_view name, std::string_view exception_name) : TestExBase(name, exception_name) {} \
 		void run() override; \
 	}; \
 } /* unnamed namespace */ \
-CCUNIT_CLASS CCUNIT_INSTANCE(test_name);\
+CCUNIT_CLASS CCUNIT_INSTANCE(test_name, #exception_type);\
 void CCUNIT_CLASS::run()
 
 #define CONFIRM_FALSE(actual) ccunit::confirm(false, actual, __LINE__)
