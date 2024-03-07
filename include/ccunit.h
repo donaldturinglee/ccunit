@@ -1,9 +1,8 @@
 #ifndef CCUNIT_H
 #define CCUNIT_H
 
-#include <iostream>
+#include <ostream>
 #include <string_view>
-#include <string>
 #include <vector>
 
 namespace ccunit {
@@ -35,9 +34,14 @@ namespace ccunit {
 		static std::vector<TestBase*> tests;
 		return tests;
 	}
-	inline void run_tests() {
+	inline int run_tests(std::ostream& os) {
+		os << "Running "
+				<< get_tests().size()
+				<< " tests\n";
+		int num_passed{0};
+		int num_failed{0};
 		for(auto* test : get_tests()) {
-			std::cout << "---------------\n"
+			os << "---------------\n"
 					<< test->get_name()
 					<< '\n';
 			try {
@@ -47,13 +51,23 @@ namespace ccunit {
 			}
 
 			if(test->get_passed()) {
-				std::cout  << "Passed\n";
+				++num_passed;
+				os  << "Passed\n";
 			} else {
-				std::cout << "Failed\n"
+				++num_failed;
+				os << "Failed\n"
 						<< test->get_reason()
 						<< '\n';
 			}
 		}
+		os << "---------------\n";
+		if(num_failed == 0) {
+			os << "All tests passed.\n";
+		} else {
+			os << "Tests passed: " << num_passed << '\n';
+			os << "Tests failed: " << num_failed << '\n';
+		}
+		return num_failed;
 	}
 } // namespace ccunit
 
