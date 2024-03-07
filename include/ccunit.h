@@ -181,7 +181,7 @@ if(actual) { \
 }
 
 #define CONFIRM_TRUE(actual) \
-if(actual) { \
+if(!actual) { \
 	throw ccunit::BoolConfirmException(true, __LINE__); \
 }
 

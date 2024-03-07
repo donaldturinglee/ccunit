@@ -1,6 +1,9 @@
 #include "ccunit.h"
 
 bool is_passing_grade(int value) {
+	if(value < 60) {
+		return false;
+	}
 	return true;
 }
 
