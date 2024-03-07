@@ -40,6 +40,27 @@ namespace ccunit {
 		std::string expected_reason_;
 	};
 
+	class ConfirmException {
+	public:
+		ConfirmException() = default;
+		virtual ~ConfirmException() = default;
+		std::string_view get_reason() const {
+			return reason_;
+		}
+	protected:
+		std::string reason_;
+	};
+
+	class BoolConfirmException : public ConfirmException {
+	public:
+		BoolConfirmException(bool expected, int line) {
+			reason_ = "Confirm failed on line ";
+			reason_ += std::to_string(line) + '\n';
+			reason_ += "    Expected: ";
+			reason_ += expected ? "true" : "false";
+		}
+	};
+
 	class MissingException {
 	public:
 		MissingException(std::string_view ex_type) : ex_type_(ex_type) {}
@@ -69,6 +90,8 @@ namespace ccunit {
 					<< '\n';
 			try {
 				test->run_ex();
+			} catch(ConfirmException const& ex) {
+				test->set_failed(ex.get_reason());
 			} catch(MissingException const& ex) {
 				std::string message = "Expected exception type ";
 				message += ex.get_ex_type();
@@ -120,33 +143,46 @@ namespace ccunit {
 #define CCUNIT_INSTANCE_RELAY(line) CCUNIT_INSTANCE_FINAL(line)
 #define CCUNIT_INSTANCE CCUNIT_INSTANCE_RELAY(__LINE__)
 
-#define TEST(test_name) class CCUNIT_CLASS : public ccunit::TestBase { \
-public: \
-	CCUNIT_CLASS(std::string_view name) : TestBase(name) { \
-		ccunit::get_tests().push_back(this); \
-	} \
-	void run() override; \
-}; \
-CCUNIT_CLASS CCUNIT_INSTANCE(test_name);\
-void CCUNIT_CLASS::run()
-
-#define TEST_EX(test_name, exception_type) class CCUNIT_CLASS : public ccunit::TestBase { \
-public: \
-	CCUNIT_CLASS(std::string_view name) : TestBase(name) { \
-		ccunit::get_tests().push_back(this); \
-	} \
-	void run_ex() override { \
-		try { \
-			run(); \
-		} catch(exception_type const& e) { \
-			return; \
+#define TEST(test_name) namespace { \
+	class CCUNIT_CLASS : public ccunit::TestBase { \
+	public: \
+		CCUNIT_CLASS(std::string_view name) : TestBase(name) { \
+			ccunit::get_tests().push_back(this); \
 		} \
-		throw ccunit::MissingException(#exception_type); \
-	} \
-	void run() override; \
-}; \
+		void run() override; \
+	}; \
+} /* unnamed namespace */ \
 CCUNIT_CLASS CCUNIT_INSTANCE(test_name);\
 void CCUNIT_CLASS::run()
 
+#define TEST_EX(test_name, exception_type) namespace { \
+	class CCUNIT_CLASS : public ccunit::TestBase { \
+	public: \
+		CCUNIT_CLASS(std::string_view name) : TestBase(name) { \
+			ccunit::get_tests().push_back(this); \
+		} \
+		void run_ex() override { \
+			try { \
+				run(); \
+			} catch(exception_type const& e) { \
+				return; \
+			} \
+			throw ccunit::MissingException(#exception_type); \
+		} \
+		void run() override; \
+	}; \
+} /* unnamed namespace */ \
+CCUNIT_CLASS CCUNIT_INSTANCE(test_name);\
+void CCUNIT_CLASS::run()
+
+#define CONFIRM_FALSE(actual) \
+if(actual) { \
+	throw ccunit::BoolConfirmException(false, __LINE__); \
+}
+
+#define CONFIRM_TRUE(actual) \
+if(actual) { \
+	throw ccunit::BoolConfirmException(true, __LINE__); \
+}
 
 #endif // CCUNIT_H
