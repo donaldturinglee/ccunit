@@ -10,6 +10,9 @@ namespace ccunit {
 	public:
 		TestBase(std::string_view name) : name_(name), passed_(true) {}
 		virtual ~TestBase() = default;
+		virtual void run_ex() {
+			run();
+		}
 		virtual void run() = 0;
 		std::string_view get_name() const {
 			return name_;
@@ -45,7 +48,7 @@ namespace ccunit {
 					<< test->get_name()
 					<< '\n';
 			try {
-				test->run();
+				test->run_ex();
 			} catch(...) {
 				test->set_failed("Unexpected exception thrown.");
 			}
@@ -89,6 +92,22 @@ public: \
 CCUNIT_CLASS CCUNIT_INSTANCE(test_name);\
 void CCUNIT_CLASS::run()
 
+#define TEST_EX(test_name, exception_type) class CCUNIT_CLASS : public ccunit::TestBase { \
+public: \
+	CCUNIT_CLASS(std::string_view name) : TestBase(name) { \
+		ccunit::get_tests().push_back(this); \
+	} \
+	void run_ex() override { \
+		try { \
+			run(); \
+		} catch(exception_type const& e) { \
+		\
+		} \
+	} \
+	void run() override; \
+}; \
+CCUNIT_CLASS CCUNIT_INSTANCE(test_name);\
+void CCUNIT_CLASS::run()
 
 
 #endif // CCUNIT_H

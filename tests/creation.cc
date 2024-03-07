@@ -5,6 +5,6 @@
 TEST("Test created") {
 }
 
-TEST("Test with throw created") {
+TEST_EX("Test with throw created", int) {
 	throw 1;
 }
