@@ -120,6 +120,17 @@ namespace ccunit {
 	};
 
 	template<typename T>
+	class SetupAndTeardown : public T {
+	public:
+		SetupAndTeardown() {
+			T::setup();
+		}
+		~SetupAndTeardown() {
+			T::teardown();
+		}
+	};
+
+	template<typename T>
 	void confirm(T const& expected, T const& actual, int line) {
 		if(actual != expected) {
 			throw ActualConfirmException(std::to_string(expected), std::to_string(actual), line);
