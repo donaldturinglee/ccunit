@@ -40,15 +40,15 @@ TEST("Test int confirms") {
 }
 
 TEST("Test bool confirm failure") {
-	std::string reason = "    Expected: true";
+	std::string reason = "	Expected: true";
 	set_expected_failure_reason(reason);
 	bool result = is_negative(0);
 	CONFIRM_TRUE(result);
 }
 
 TEST("Test int confirm failure") {
-	std::string reason = "    Expected: 0\n";
-	reason += "    Actual  : 2";
+	std::string reason = "	Expected: 0\n";
+	reason += "	Actual: 2";
 	set_expected_failure_reason(reason);
 	int result = multiply_by_2(1);
 	CONFIRM(0, result);
@@ -64,8 +64,8 @@ TEST("Test long confirms") {
 }
 
 TEST("Test long confirm failure") {
-	std::string reason = "    Expected: 0\n";
-	reason += "    Actual  : 2";
+	std::string reason = "	Expected: 0\n";
+	reason += "	Actual: 2";
 	set_expected_failure_reason(reason);
 	long result = multiply_by_2(1L);
 	CONFIRM(0L, result);
@@ -81,8 +81,8 @@ TEST("Test long long confirms") {
 }
 
 TEST("Test long long confirm failure") {
-	std::string reason = "    Expected: 10000000000\n";
-	reason += "    Actual  : 20000000000";
+	std::string reason = "	Expected: 10000000000\n";
+	reason += "	Actual: 20000000000";
 	set_expected_failure_reason(reason);
 	long long result = multiply_by_2(10'000'000'000LL);
 	CONFIRM(10'000'000'000LL, result);
@@ -95,8 +95,8 @@ TEST("Test string confirms") {
 }
 
 TEST("Test string confirms") {
-	std::string reason = "    Expected: def\n";
-	reason += "    Actual  : abc";
+	std::string reason = "	Expected: def\n";
+	reason += "	Actual: abc";
 	set_expected_failure_reason(reason);
 	std::string result = "abc";
 	std::string expected = "def";
