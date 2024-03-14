@@ -30,6 +30,20 @@ protected:
 	int line_;
 };
 
+class ThreadConfirmException : public ConfirmException {
+public:
+	ThreadConfirmException() : ConfirmException(0) {}
+	void set_failure(int line, std::string_view reason) {
+		line_ = line;
+		reason_ = reason;
+	}
+	void get_check_failure() const {
+		if(line_ != 0) {
+			throw *this;
+		}
+	}
+};
+
 class BoolConfirmException : public ConfirmException {
 public:
 	BoolConfirmException(bool expected, int line) : ConfirmException(line) {
