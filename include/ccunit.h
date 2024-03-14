@@ -1,9 +1,14 @@
 #ifndef CCUNIT_H
 #define CCUNIT_H
 
+#include <concepts>
+#include <cmath>
+#include <cstring>
+#include <limits>
 #include <map>
 #include <ostream>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 namespace ccunit {
@@ -12,9 +17,11 @@ class ConfirmException {
 public:
 	ConfirmException(int line) : line_(line) {}
 	virtual ~ConfirmException() = default;
+
 	std::string_view get_reason() const {
 		return reason_;
 	}
+
 	int get_line() const {
 		return line_;
 	}
@@ -33,12 +40,13 @@ public:
 
 class ActualConfirmException : public ConfirmException {
 public:
-	ActualConfirmException(std::string_view expected, std::string_view actual, int line) : ConfirmException(line), expected_(expected), actual_(actual) {
-		format_reason();
-	}
+	ActualConfirmException(std::string_view expected, std::string_view actual, int line)
+		: ConfirmException(line), expected_(expected), actual_(actual) {
+			format_reason();
+		}
 private:
 	void format_reason() {
-		reason_ += "	Expected: " + expected_ + '\n';
+		reason_ += "	Expected: " + expected_ + "\n";
 		reason_ += "	Actual: " + actual_;
 	}
 	std::string expected_;
@@ -48,48 +56,62 @@ private:
 class MissingException {
 public:
 	MissingException(std::string_view ex_type) : ex_type_(ex_type) {}
-	std::string_view get_ex_type() const {
+	std::string_view get_ex_type () const {
 		return ex_type_;
 	}
 private:
 	std::string ex_type_;
 };
 
+constexpr float get_margin (float) {
+	return std::numeric_limits<float>::epsilon() * 4;
+}
+
+constexpr double get_margin (double) {
+	return std::numeric_limits<double>::epsilon() * 4;
+}
+
+constexpr long double get_margin (long double) {
+	return std::numeric_limits<double>::epsilon();
+}
+
+template<typename T>
+bool compare_eq(T lhs, T rhs) {
+	if(lhs == rhs) {
+		return true;
+	}
+
+	T diff = std::abs(lhs - rhs);
+	if(diff <= std::numeric_limits<T>::min()) {
+		return true;
+	}
+
+	lhs = std::abs(lhs);
+	rhs = std::abs(rhs);
+	T larger = (lhs > rhs) ? lhs : rhs;
+	larger = (larger < 1.0) ? 1.0 : larger;
+	bool result = (diff <= get_margin(lhs) * larger);
+	return result;
+}
+
 inline void confirm(bool expected, bool actual, int line) {
-	if(actual != expected) {
+	if (actual != expected) {
 		throw BoolConfirmException(expected, line);
 	}
 }
 
-inline void confirm(std::string_view expected, std::string_view actual, int line) {
-	if(actual != expected) {
-		throw ActualConfirmException(expected, actual, line);
+template<std::floating_point T>
+void confirm(T expected, T actual, int line) {
+	if(!compare_eq(actual, expected)) {
+		throw ActualConfirmException(
+			std::to_string(expected),
+			std::to_string(actual),
+			line
+		);
 	}
 }
 
-inline void confirm(std::string const& expected, std::string const& actual, int line) {
-	confirm(std::string_view(expected), std::string_view(actual), line);
-}
-
-inline void confirm(float expected, float actual, int line) {
-	if(actual < (expected - 0.0001f) || actual > (expected + 0.0001f)) {
-		throw ActualConfirmException(std::to_string(expected), std::to_string(actual), line);
-	}
-}
-
-inline void confirm(double expected, double actual, int line) {
-	if(actual < (expected - 0.000001) || actual > (expected + 0.000001)) {
-		throw ActualConfirmException(std::to_string(expected), std::to_string(actual), line);
-	}
-}
-
-inline void confirm(long double expected, long double actual, int line) {
-	if(actual < (expected - 0.000001) || actual > (expected + 0.000001)) {
-		throw ActualConfirmException(std::to_string(expected), std::to_string(actual), line);
-	}
-}
-
-inline std::string to_string(std::string const& str) {
+inline std::string to_string (std::string const& str) {
 	return str;
 }
 
@@ -106,7 +128,7 @@ void confirm(ExpectedType const& expected, ActualType const& actual, int line) {
 	}
 }
 
-template<typename ActualType, typename MatcherType>
+template <typename ActualType, typename MatcherType>
 inline void confirm_eq(ActualType const& actual, MatcherType const& matcher, int line) {
 	using std::to_string;
 	using ccunit::to_string;
@@ -122,11 +144,10 @@ inline void confirm_eq(ActualType const& actual, MatcherType const& matcher, int
 class Matcher {
 public:
 	Matcher(Matcher const& source) = delete;
-	Matcher(Matcher&& souce) = delete;
+	Matcher(Matcher&& source) = delete;
 	Matcher& operator=(Matcher const& rhs) = delete;
 	Matcher& operator=(Matcher&& rhs) = delete;
 	virtual ~Matcher() = default;
-	
 	virtual std::string to_string() const = 0;
 protected:
 	Matcher() = default;
@@ -150,6 +171,78 @@ public:
 	}
 private:
 	T expected_;
+};
+
+template<typename T, std::size_t SIZE> requires(std::is_same<char, std::remove_const_t<T>>::value)
+class Equals<T[SIZE]> : public Matcher {
+public:
+	Equals(char const (&expected)[SIZE]) {
+		memcpy(expected_, expected, SIZE);
+	}
+	bool get_pass(std::string const& actual) const {
+		return actual == expected_;
+	}
+	std::string to_string() const override {
+		return std::string(expected_);
+	}
+private:
+	char expected_[SIZE];
+};
+
+template<typename T> requires(std::is_same<char, std::remove_const_t<T>>::value)
+class Equals<T *> : public Matcher {
+public:
+	Equals(char const* expected) : expected_(expected) {}
+	bool get_pass(std::string const& actual) const {
+		return actual == expected_;
+	}
+	std::string to_string() const override {
+		return expected_;
+	}
+private:
+	std::string expected_;
+};
+
+template <std::floating_point T>
+class Equals<T> : public Matcher {
+public:
+	Equals(T const& expected) : expected_(expected) {}
+	bool get_pass(T const& actual) const {
+		return compare_eq(actual, expected_);
+	}
+	std::string to_string() const override {
+		return std::to_string(expected_);
+	}
+private:
+	T expected_;
+};
+
+template<typename T>
+class NotEquals : public Matcher {
+public:
+	NotEquals(T const& expected) : expected_(expected) {}
+	
+	template<typename U>
+	bool get_pass(U const& actual) const {
+		return (!expected_.get_pass(actual));
+	}
+	std::string to_string() const override {
+		return "not " + expected_.to_string();
+	}
+private:
+	Equals<T> expected_;
+};
+
+template<std::integral T>
+class IsEven : public Matcher {
+public:
+	IsEven() {}
+	bool get_pass(T const& actual) const {
+		return (actual % 2 == 0);
+	}
+	std::string to_string() const override {
+		return "is even";
+	}
 };
 
 class Test;
@@ -200,7 +293,7 @@ public:
 	int get_confirm_location() const {
 		return confirm_location_;
 	}
-	void set_failed(std::string_view reason, int confirm_location = -1) {
+	void set_failed (std::string_view reason, int confirm_location = -1) {
 		passed_ = false;
 		reason_ = reason;
 		confirm_location_ = confirm_location;
@@ -221,11 +314,13 @@ public:
 	virtual void run_ex() {
 		run();
 	}
+
 	virtual void run() = 0;
-	std::string_view get_expected_reason() const {
+
+	std::string_view get_expected_reason () const {
 		return expected_reason_;
 	}
-	void set_expected_failure_reason(std::string_view reason) {
+	void set_expected_failure_reason (std::string_view reason) {
 		expected_reason_ = reason;
 	}
 private:
@@ -258,7 +353,7 @@ public:
 };
 
 inline void run_test(std::ostream& os, Test* test, int& num_passed, int& num_failed, int& num_missed_failed) {
-	os << "------- Test: " << test->get_name() << '\n';
+	os << "------- Test: " << test->get_name() << "\n";
 	try {
 		test->run_ex();
 	} catch(ConfirmException const& ex) {
@@ -284,26 +379,26 @@ inline void run_test(std::ostream& os, Test* test, int& num_passed, int& num_fai
 	} else if(!test->get_expected_reason().empty() && test->get_expected_reason() == test->get_reason()) {
 		++num_passed;
 		os << "Expected failure\n";
-		os << test->get_reason() << '\n';
+		os << test->get_reason() << "\n";
 	} else {
 		++num_failed;
 		if(test->get_confirm_location() != -1) {
-			os << "Failed confirm on line " << test->get_confirm_location() << '\n';
+			os << "Failed confirm on line " << test->get_confirm_location() << "\n";
 		} else {
 			os << "Failed\n";
 		}
-		os << test->get_reason() << '\n';
+		os << test->get_reason() << "\n";
 	}
 }
 
 inline bool run_suite(std::ostream& os, bool setup, std::string const& name, int& num_passed, int& num_failed) {
-	for(auto& suite: get_test_suites()[name]) {
+	for(auto& suite : get_test_suites()[name]) {
 		if(setup) {
 			os << "------- Setup: ";
 		} else {
 			os << "------- Teardown: ";
 		}
-		os << suite->get_name() << '\n';
+		os << suite->get_name() << "\n";
 
 		try {
 			if(setup) {
@@ -316,18 +411,17 @@ inline bool run_suite(std::ostream& os, bool setup, std::string const& name, int
 		} catch(...) {
 			suite->set_failed("Unexpected exception thrown.");
 		}
-
 		if(suite->get_passed()) {
 			++num_passed;
 			os << "Passed\n";
 		} else {
 			++num_failed;
 			if(suite->get_confirm_location() != -1) {
-				os << "Failed confirm on line " << suite->get_confirm_location() << '\n';
+				os << "Failed confirm on line " << suite->get_confirm_location() << "\n";
 			} else {
 				os << "Failed\n";
 			}
-			os << suite->get_reason() << '\n';
+			os << suite->get_reason() << "\n";
 			return false;
 		}
 	}
@@ -336,10 +430,9 @@ inline bool run_suite(std::ostream& os, bool setup, std::string const& name, int
 
 inline int run_tests(std::ostream& os) {
 	os << "Running " << get_tests().size() << " test suites\n";
-	int num_passed{0};
-	int num_missed_failed{0};
-	int num_failed{0};
-
+	int num_passed = 0;
+	int num_missed_failed = 0;
+	int num_failed = 0;
 	for(auto const& [key, value] : get_tests()) {
 		std::string suite_display_name = "Suite: ";
 		if(key.empty()) {
@@ -347,14 +440,18 @@ inline int run_tests(std::ostream& os) {
 		} else {
 			suite_display_name += key;
 		}
-		os << "--------------- " << suite_display_name << '\n';
+		os << "--------------- " << suite_display_name << "\n";
+
 		if(!key.empty()) {
 			if(!get_test_suites().contains(key)) {
-				os << "Test suite is not found. Exiting test application.\n";
-				return ++num_failed;
+				os << "Test suite is not found. ";
+				os << "Exiting test application. \n";
+				++num_failed;
+				return num_failed;
 			}
 			if(!run_suite(os, true, key, num_passed, num_failed)) {
-				os << "Test suite setup failed. Skipping tests in suite.\n";
+				os << "Test suite setup failed. ";
+				os << "Skipping tests in suite.\n";
 				continue;
 			}
 		}
@@ -370,13 +467,12 @@ inline int run_tests(std::ostream& os) {
 		}
 	}
 	os << "-----------------------------------\n";
-	os << "Tests passed: " << num_passed << '\n';
-	os << "Tests failed: " << num_failed << '\n';
-
+	os << "Tests passed: " << num_passed << "\n";
+	os << "Tests failed: " << num_failed << "\n";
 	if(num_missed_failed != 0) {
 		os << "Tests failures missed: " << num_missed_failed;
 	}
-	os << '\n';
+	os << "\n";
 
 	return num_failed;
 }
@@ -399,6 +495,7 @@ public:
 	void suite_setup() override {
 		T::setup();
 	}
+
 	void suite_teardown() override {
 		T::teardown();
 	}
