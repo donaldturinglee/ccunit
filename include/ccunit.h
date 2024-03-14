@@ -89,12 +89,68 @@ inline void confirm(long double expected, long double actual, int line) {
 	}
 }
 
-template<typename T>
-void confirm(T const& expected, T const& actual, int line) {
+inline std::string to_string(std::string const& str) {
+	return str;
+}
+
+template<typename ExpectedType, typename ActualType>
+void confirm(ExpectedType const& expected, ActualType const& actual, int line) {
+	using std::to_string;
+	using ccunit::to_string;
 	if(actual != expected) {
-		throw ActualConfirmException(std::to_string(expected), std::to_string(actual), line);
+		throw ActualConfirmException(
+			to_string(expected),
+			to_string(actual),
+			line
+		);
 	}
 }
+
+template<typename ActualType, typename MatcherType>
+inline void confirm_eq(ActualType const& actual, MatcherType const& matcher, int line) {
+	using std::to_string;
+	using ccunit::to_string;
+	if(!matcher.get_pass(actual)) {
+		throw ActualConfirmException(
+			to_string(matcher),
+			to_string(actual),
+			line
+		);
+	}
+}
+
+class Matcher {
+public:
+	Matcher(Matcher const& source) = delete;
+	Matcher(Matcher&& souce) = delete;
+	Matcher& operator=(Matcher const& rhs) = delete;
+	Matcher& operator=(Matcher&& rhs) = delete;
+	virtual ~Matcher() = default;
+	
+	virtual std::string to_string() const = 0;
+protected:
+	Matcher() = default;
+};
+
+inline std::string to_string(Matcher const& matcher) {
+	return matcher.to_string();
+}
+
+template<typename T>
+class Equals : public Matcher {
+public:
+	Equals(T const& expected) : expected_(expected) {}
+	bool get_pass(T const& actual) const {
+		return actual == expected_;
+	}
+	std::string to_string() const override {
+		using std::to_string;
+		using ccunit::to_string;
+		return to_string(expected_);
+	}
+private:
+	T expected_;
+};
 
 class Test;
 class TestSuite;
@@ -408,5 +464,7 @@ void CCUNIT_CLASS::run()
 	ccunit::confirm(true, actual, __LINE__)
 #define CONFIRM(expected, actual) \
 	ccunit::confirm(expected, actual, __LINE__)
+#define CONFIRM_EQ(actual, matcher) \
+	ccunit::confirm_eq(actual, matcher, __LINE__)
 
 #endif // CCUNIT_H
