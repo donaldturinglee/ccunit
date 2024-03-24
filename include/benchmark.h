@@ -7,7 +7,6 @@
 #include <sstream>
 #include <functional>
 #include <iomanip>
-#include <format>
 
 namespace ccunit {
 
@@ -21,7 +20,7 @@ public:
     	auto end = std::chrono::high_resolution_clock::now();
     	std::chrono::duration<double, std::nano> elapsed_time = end - start;
 		std::stringstream ss;
-		ss << std::fixed << std::setprecision(2) << elapsed_time.count() / 1000;
+		ss << std::fixed << std::setprecision(2) << elapsed_time.count();
 		os << std::left << std::setw(22 - name_.size()) << name_;
 		std::string str = ss.str() + " ns";
 		os << std::left << str << "\n";
