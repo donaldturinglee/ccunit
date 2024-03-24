@@ -11,6 +11,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "benchmark.h"
+
 namespace ccunit {
 
 class ConfirmException {
